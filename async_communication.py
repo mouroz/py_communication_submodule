@@ -5,7 +5,7 @@ import os
 import struct
 from pathlib import Path
 import uuid
-
+from time import time
 
 class AsyncCommunication:
     BUFFER_SIZE = 65536
@@ -104,7 +104,7 @@ class AsyncReceiver(AsyncCommunication):
         addr = writer.get_extra_info('peername')
         session_id = str(uuid.uuid4())[:8]
         client_tag = f"[ID:{session_id} | {addr[0]}:{addr[1]}]"
-        
+        print(f"{time()} Connected to Sender {client_tag}")
         
         try:
             async for msg_type, size, filename in self._stream_messages(reader):
@@ -128,10 +128,10 @@ class AsyncReceiver(AsyncCommunication):
             
         except asyncio.IncompleteReadError:
             # Triggered if the client closes the connection while we were expecting data
-            print(f"{client_tag} WARNING: Client disconnected during transmission (Data truncated).")
+            print(f"{time()} | {client_tag} WARNING: Client disconnected during transmission (Data truncated).")
         except ConnectionResetError:
             # Triggered if the client crashed or their OS forcibly closed the socket
-            print(f"{client_tag} ALERT: Connection reset by peer (Hard disconnect).")     
+            print(f"{time()} | {client_tag} ALERT: Connection reset by peer (Hard disconnect).")     
         except Exception as e:
             print(f"Error with {addr}: {e}")
         finally:
