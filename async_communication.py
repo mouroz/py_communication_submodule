@@ -177,17 +177,19 @@ class AsyncSender(AsyncCommunication):
         self.writer.write(data)
         await self.writer.drain()
 
-    async def send_file(self, filepath: str):
+    async def send_file(self, filepath: str, basename):
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Not found: {filepath}")
 
-        filename = os.path.basename(filepath)
+        
+        
+        
         file_size = os.path.getsize(filepath)
 
         msg_type = self.get_msg_type(filepath)
         
         try:
-            await self._send_header(self.writer, msg_type, file_size, filename)
+            await self._send_header(self.writer, msg_type, file_size, basename)
 
             # Send file in chunks
             with open(filepath, 'rb') as f:
@@ -214,10 +216,10 @@ class AsyncSender(AsyncCommunication):
             except Exception:
                 pass # Ignore errors during forced close
 
-            raise ConnectionResetError(f"Failed to send {filename}")
+            raise ConnectionResetError(f"Failed to send {basename}")
     
     
-    async def send_folder_recursive(self, folder_path: str):
+    async def send_folder_recursive(self, folder_path:str, parent_folder_name:str = None):
         """
         Recursively sends a folder and its contents.
         Preserves structure by sending 'folder/subfolder/file.ext' as the filename.
@@ -240,8 +242,12 @@ class AsyncSender(AsyncCommunication):
                 # IMPORTANT: Normalize slashes to forward slashes '/' 
                 # This ensures Windows clients can send to Linux servers correctly.
                 remote_filename = rel_path.replace(os.sep, '/')
-
-                await self.send_file(full_path)
+                
+                
+                basename = os.path.basename(full_path)
+                if parent_folder_name is not None:
+                    basename = parent_folder_name + '/' + basename
+                await self.send_file(full_path, basename)
     
     async def disconnect(self):
         if self.writer:
