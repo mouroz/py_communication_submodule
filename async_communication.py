@@ -177,11 +177,11 @@ class AsyncSender(AsyncCommunication):
         self.writer.write(data)
         await self.writer.drain()
 
-    async def send_file(self, filepath: str):
+    async def send_file(self, filepath: str, remote_filename: str = None):
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Not found: {filepath}")
 
-        filename = os.path.basename(filepath)
+        filename = remote_filename or os.path.basename(filepath)
         file_size = os.path.getsize(filepath)
 
         msg_type = self.get_msg_type(filepath)
@@ -217,18 +217,22 @@ class AsyncSender(AsyncCommunication):
             raise ConnectionResetError(f"Failed to send {filename}")
     
     
-    async def send_folder_recursive(self, folder_path: str):
+    async def send_folder_recursive(self, folder_path: str, base_path: str = None):
         """
         Recursively sends a folder and its contents.
         Preserves structure by sending 'folder/subfolder/file.ext' as the filename.
+        
+        Args:
+            folder_path: Path to the folder to send
+            base_path: Optional base path for calculating relative paths.
+                       If None, uses parent of folder_path.
         """
         if not os.path.exists(folder_path):
             raise FileNotFoundError(f"Folder not found: {folder_path}")
 
-        # specific logic to capture the folder name itself in the path
-        # If folder_path is "./my_run", we want the files to be named "my_run/file.txt"
-        # So we calculate path relative to the *parent* of the target folder.
-        base_path = os.path.dirname(os.path.normpath(folder_path))
+        # If no explicit base_path, use parent of folder_path
+        if base_path is None:
+            base_path = os.path.dirname(os.path.normpath(folder_path))
 
         for root, _, files in os.walk(folder_path):
             for file in files:
@@ -241,7 +245,7 @@ class AsyncSender(AsyncCommunication):
                 # This ensures Windows clients can send to Linux servers correctly.
                 remote_filename = rel_path.replace(os.sep, '/')
 
-                await self.send_file(full_path)
+                await self.send_file(full_path, remote_filename)
     
     async def disconnect(self):
         if self.writer:
